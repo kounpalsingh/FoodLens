@@ -1,0 +1,15 @@
+# dependencies and build output
+node_modules
+.next
+.netlify
+next-env.d.ts
+*.tsbuildinfo
+
+# secrets: never commit keys
+.env
+.env*.local
+
+# local logs and reports
+*.log
+validation-report.txt
+.DS_Store
