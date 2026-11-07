@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { CheckError, runCheck } from "@/lib/check";
+import { CheckError, NeedsSearch, runCheck } from "@/lib/check";
 
 export const runtime = "nodejs";
 
@@ -18,6 +18,7 @@ export async function POST(req: Request) {
   try {
     return NextResponse.json(await runCheck(parsed.data));
   } catch (e) {
+    if (e instanceof NeedsSearch) return NextResponse.json({ search: { query: e.query } });
     const message =
       e instanceof CheckError ? e.message : "Something went wrong while checking. Please try again.";
     if (!(e instanceof CheckError)) console.error(e);

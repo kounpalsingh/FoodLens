@@ -36,6 +36,9 @@ Photo ──► the browser looks for a barcode
 - Non-food products (cleaning products, cosmetics) are rejected with a clear message.
 - For barcode products, Open Food Facts' own per-ingredient analysis is used as a second opinion.
 - English names come from a German–English dictionary of about 4,800 ingredient names. Anything it doesn't know is translated by the AI in a second step.
+- **Plant or animal?** Additives that can come from either (E471, E481, glycerin, L-cysteine, vitamin D3…) are listed with what they are and whether the source is known. A source counts only with evidence: words next to it on the label ("pflanzlich", "tierisch"), a product-wide statement ("alle Emulgatoren pflanzlichen Ursprungs"), or a vegan label on the product. Otherwise it says "Source not stated".
+- **Nutrition level:** Nutri-Score and low / medium / high for fat, saturated fat, sugars and salt per 100 g (UK traffic-light thresholds), from Open Food Facts or read from the photo's nutrition table. It never changes the veg category.
+- **Three ways in:** a label photo (barcode, ingredient list, or the front of the pack), pasted ingredients, or a product name. A front-of-pack photo or a typed name searches Open Food Facts and lets you pick the product.
 
 ### Confidence (a heuristic, not a probability)
 
@@ -48,6 +51,17 @@ Photo ──► the browser looks for a barcode
 | Photo partly unreadable | at most 45% → **Unclear** |
 | No ingredient list found | 25% → **Unclear** |
 
+## Find the best option
+
+Type a request like "best milk at Lidl", "vegan yoghurt at Aldi" or "Hafermilch bei Edeka" and get the top 5 products, ranked by quality. Prices are not included yet: Open Food Facts' price data covers too few German supermarket products.
+
+1. **Understand the request** without AI: the store, the product type and the diet are matched from word lists (`data/stores.json`, `data/product-types.json`), in English or German. Small typos are fine ("choclate", "Kaufand"). If no product type matches, the remaining words are searched as free text ("Erdnüsse bei Kaufland").
+2. **Find candidates** in Open Food Facts: products in that category, sold in Germany, from the store's own brands (Milbona and Vemondo for Lidl, ja! and REWE Bio for Rewe, and so on). Branded products a store also sells (e.g. Haribo at Lidl) aren't covered.
+3. **Check each one** with the same rules as a barcode check, and drop those that don't fit the chosen diet or have no ingredient list.
+4. **Rank** by Nutri-Score (counts most), organic, "Ohne Gentechnik", animal-welfare level (Haltungsform 3–4), processing (NOVA) and additives whose source is unknown. Every point is shown on the card as a reason.
+
+All candidates are fetched in one request, searches are kept for an hour and product lookups for 6 hours, because Open Food Facts limits how often one server may ask. When it's busy anyway, fewer products are checked and the result says so.
+
 ## Run it locally
 
 Needs Node.js 20 or newer.
@@ -56,7 +70,9 @@ Needs Node.js 20 or newer.
 npm install
 cp .env.example .env.local   # optional: add an OpenRouter or Groq key
 npm run dev                  # open http://localhost:3000
-npm test                     # 61 sample labels with expected categories
+npm test                     # 65 sample labels with expected categories
+npm run test:check           # 9 end-to-end checks of additive handling
+npm run test:recommend       # 34 shopping requests (typos too) and quality labels
 ```
 
 Without an AI key the app still works for photos that show a **barcode** and for **pasted ingredient text**. The key is only needed to read a photo of the ingredient list itself.
@@ -83,17 +99,23 @@ On OpenRouter the app only uses models ending in `:free` unless `LLM_ALLOW_PAID=
 | `lib/translate.ts` | German → English dictionary lookup |
 | `lib/llm.ts` | OpenRouter / Groq client with a time budget and free-model fallbacks |
 | `lib/openfoodfacts.ts` | Barcode lookup |
+| `lib/search.ts`, `app/api/search/route.ts` | Search by product name |
+| `lib/additives.ts`, `data/additives.json` | Plant-or-animal additives and the evidence for each |
+| `lib/nutrition.ts` | Nutri-Score and nutrient levels |
+| `lib/recommend.ts`, `app/api/recommend/route.ts` | Find the best option at a store |
+| `data/stores.json`, `data/product-types.json` | Stores and their own brands; product words mapped to Open Food Facts categories |
 | `data/ingredient-rules.json` | **The ingredient rules. Edit this to change what is flagged.** |
 | `data/glossary-de-en.json` | Hand-written German–English ingredient dictionary |
 | `data/off-*.json` | Generated from the Open Food Facts ingredient taxonomy (`scripts/build-taxonomy.py`) |
 | `scripts/test-rules.ts` | Sample labels with expected categories |
+| `scripts/test-recommend.ts` | Shopping requests with the expected store, product and diet |
 | `scripts/validate-off.ts` | Compares the rules with Open Food Facts on real German products |
 
 ## Not built yet
 
-- Shelf-Safe Alternatives (the feature proposed in the teardown)
+- Shelf-Safe Alternatives (the feature proposed in the teardown); "Find the best option" is a first step
+- Prices ("best and cheap"), once there's a usable German price source
 - Analytics events for the A/B test
-- Nutrition level, per-additive source details, search by product name
 - More diets (e.g. Jain)
 
 ## Data and credits

@@ -1,0 +1,325 @@
+{
+  "_readme": [
+    "Additives that can come from plants OR animals. Food Lens shows each one it finds, with what it is and whether the source is known.",
+    "terms: matched like the rules file ('=word' = whole word). E-numbers without spaces ('e471'); labels writing 'E 471' or 'E-471' are normalised.",
+    "group: which rule group in ingredient-rules.json this additive belongs to, so a known source can settle that rule's 'Unclear'.",
+    "veganClaimSettles: true when a 'vegan' label on the product is enough to know the source is not animal.",
+    "This is general background, not a guarantee for any single product."
+  ],
+  "plantWords": [
+    "pflanzlich",
+    "pflanzlichen",
+    "pflanzlicher",
+    "aus raps",
+    "rapsöl",
+    "sonnenblume",
+    "aus palm",
+    "palmöl",
+    "palmfett",
+    "aus soja",
+    "sojaöl",
+    "kokos",
+    "vegetable",
+    "plant-based",
+    "plant based",
+    "of plant origin",
+    "from rapeseed",
+    "from sunflower",
+    "from palm",
+    "vegan"
+  ],
+  "animalWords": [
+    "tierisch",
+    "tierischen",
+    "tierischer",
+    "vom schwein",
+    "aus schweine",
+    "vom rind",
+    "aus rinder",
+    "aus fisch",
+    "animal",
+    "pork",
+    "porcine",
+    "beef",
+    "bovine"
+  ],
+  "productWidePlantStatements": [
+    "alle emulgatoren pflanzlich",
+    "emulgatoren pflanzlichen ursprungs",
+    "emulgatoren pflanzlicher herkunft",
+    "emulgator pflanzlichen ursprungs",
+    "all emulsifiers are plant",
+    "emulsifiers of plant origin",
+    "emulsifiers of vegetable origin"
+  ],
+  "additives": [
+    {
+      "code": "E422",
+      "terms": [
+        "e422",
+        "=glycerin",
+        "=glycerol"
+      ],
+      "name": "Glycerin",
+      "about": "A sweet, thick liquid that keeps food moist. Made from plant oils or animal fat.",
+      "group": "emulsifier_maybe_animal",
+      "veganClaimSettles": true
+    },
+    {
+      "code": "E470",
+      "terms": [
+        "e470",
+        "e470a",
+        "e470b",
+        "salze von speisefettsäuren",
+        "salts of fatty acids"
+      ],
+      "name": "Salts of fatty acids",
+      "about": "Emulsifier and anti-caking agent. The fatty acids come from plant oils or animal fat.",
+      "group": "emulsifier_maybe_animal",
+      "veganClaimSettles": true
+    },
+    {
+      "code": "E471",
+      "terms": [
+        "e471",
+        "mono- und diglyceride",
+        "mono und diglyceride",
+        "mono- and diglycerides",
+        "diglycerid"
+      ],
+      "name": "Mono- and diglycerides of fatty acids",
+      "about": "The most common emulsifier, in bread, ice cream and margarine. Usually made from palm, soy or rapeseed oil, but can be made from animal fat.",
+      "group": "emulsifier_maybe_animal",
+      "veganClaimSettles": true
+    },
+    {
+      "code": "E472",
+      "terms": [
+        "e472",
+        "e472a",
+        "e472b",
+        "e472c",
+        "e472d",
+        "e472e",
+        "e472f",
+        "essigsäureester",
+        "milchsäureester",
+        "citronensäureester",
+        "weinsäureester",
+        "datem"
+      ],
+      "name": "Esters of mono- and diglycerides",
+      "about": "Emulsifiers made from E471 and a food acid. Same question: plant oil or animal fat.",
+      "group": "emulsifier_maybe_animal",
+      "veganClaimSettles": true
+    },
+    {
+      "code": "E473",
+      "terms": [
+        "e473",
+        "zuckerester",
+        "sucrose esters"
+      ],
+      "name": "Sucrose esters of fatty acids",
+      "about": "Emulsifier made from sugar and fatty acids from plant oil or animal fat.",
+      "group": "emulsifier_maybe_animal",
+      "veganClaimSettles": true
+    },
+    {
+      "code": "E474",
+      "terms": [
+        "e474",
+        "zuckerglyceride",
+        "sucroglycerides"
+      ],
+      "name": "Sucroglycerides",
+      "about": "Emulsifier made from sugar and fats, which can be plant or animal.",
+      "group": "emulsifier_maybe_animal",
+      "veganClaimSettles": true
+    },
+    {
+      "code": "E475",
+      "terms": [
+        "e475",
+        "polyglycerinester",
+        "polyglycerol esters"
+      ],
+      "name": "Polyglycerol esters of fatty acids",
+      "about": "Emulsifier used in cakes and baked goods. Fatty acids from plant oil or animal fat.",
+      "group": "emulsifier_maybe_animal",
+      "veganClaimSettles": true
+    },
+    {
+      "code": "E477",
+      "terms": [
+        "e477",
+        "propylenglycolester",
+        "propane-1,2-diol esters"
+      ],
+      "name": "Propylene glycol esters of fatty acids",
+      "about": "Emulsifier for whipped toppings and cakes. Fatty acids from plant oil or animal fat.",
+      "group": "emulsifier_maybe_animal",
+      "veganClaimSettles": true
+    },
+    {
+      "code": "E481",
+      "terms": [
+        "e481",
+        "natriumstearoyl",
+        "sodium stearoyl"
+      ],
+      "name": "Sodium stearoyl-2-lactylate",
+      "about": "Dough conditioner in bread and buns. Made from lactic acid and stearic acid, which can be plant or animal.",
+      "group": "emulsifier_maybe_animal",
+      "veganClaimSettles": true
+    },
+    {
+      "code": "E482",
+      "terms": [
+        "e482",
+        "calciumstearoyl",
+        "calcium stearoyl"
+      ],
+      "name": "Calcium stearoyl-2-lactylate",
+      "about": "Dough conditioner like E481. Stearic acid from plant or animal fat.",
+      "group": "emulsifier_maybe_animal",
+      "veganClaimSettles": true
+    },
+    {
+      "code": "E483",
+      "terms": [
+        "e483",
+        "stearyltartrat",
+        "stearyl tartrate"
+      ],
+      "name": "Stearyl tartrate",
+      "about": "Dough improver. The fat part can be plant or animal.",
+      "group": "emulsifier_maybe_animal",
+      "veganClaimSettles": true
+    },
+    {
+      "code": "E491–E495",
+      "terms": [
+        "e491",
+        "e492",
+        "e493",
+        "e494",
+        "e495",
+        "sorbitanmonostearat",
+        "sorbitan"
+      ],
+      "name": "Sorbitan esters",
+      "about": "Emulsifiers in yeast, cakes and toppings. Fatty acids from plant oil or animal fat.",
+      "group": "emulsifier_maybe_animal",
+      "veganClaimSettles": true
+    },
+    {
+      "code": "E570",
+      "terms": [
+        "e570",
+        "stearinsäure",
+        "stearic acid"
+      ],
+      "name": "Stearic acid",
+      "about": "A fatty acid used as an anti-caking and coating agent. From plant oil or animal fat.",
+      "group": "emulsifier_maybe_animal",
+      "veganClaimSettles": true
+    },
+    {
+      "code": "E572",
+      "terms": [
+        "e572",
+        "magnesiumstearat",
+        "magnesium stearate"
+      ],
+      "name": "Magnesium stearate",
+      "about": "Anti-caking agent, common in tablets and sweets. Stearic acid from plant or animal fat.",
+      "group": "emulsifier_maybe_animal",
+      "veganClaimSettles": true
+    },
+    {
+      "code": "E627",
+      "terms": [
+        "e627",
+        "dinatriumguanylat",
+        "disodium guanylate"
+      ],
+      "name": "Disodium guanylate",
+      "about": "Flavour enhancer in crisps and instant noodles. Made from yeast or by fermentation, sometimes from fish.",
+      "group": "emulsifier_maybe_animal",
+      "veganClaimSettles": true
+    },
+    {
+      "code": "E631",
+      "terms": [
+        "e631",
+        "dinatriuminosinat",
+        "disodium inosinate"
+      ],
+      "name": "Disodium inosinate",
+      "about": "Flavour enhancer often paired with E627. Traditionally from meat or fish, today often from fermentation.",
+      "group": "emulsifier_maybe_animal",
+      "veganClaimSettles": true
+    },
+    {
+      "code": "E635",
+      "terms": [
+        "e635",
+        "dinatrium-5-ribonukleotid",
+        "disodium 5'-ribonucleotides"
+      ],
+      "name": "Disodium ribonucleotides",
+      "about": "A mix of E627 and E631; the same plant-or-animal question.",
+      "group": "emulsifier_maybe_animal",
+      "veganClaimSettles": true
+    },
+    {
+      "code": "E920",
+      "terms": [
+        "e920",
+        "l-cystein",
+        "l-cysteine"
+      ],
+      "name": "L-cysteine",
+      "about": "Flour treatment agent in bread. Can be made from feathers or hair, or by fermentation.",
+      "group": "emulsifier_maybe_animal",
+      "veganClaimSettles": true
+    },
+    {
+      "code": "E921",
+      "terms": [
+        "e921",
+        "l-cystin",
+        "l-cystine"
+      ],
+      "name": "L-cystine",
+      "about": "Related to E920, with the same possible animal origin.",
+      "group": "emulsifier_maybe_animal",
+      "veganClaimSettles": true
+    },
+    {
+      "code": "Vitamin D3",
+      "terms": [
+        "vitamin d3",
+        "cholecalciferol"
+      ],
+      "name": "Vitamin D3",
+      "about": "Usually made from lanolin in sheep's wool (vegetarian, not vegan); plant versions come from lichen.",
+      "group": "vitamin_d3_lanolin",
+      "veganClaimSettles": true
+    },
+    {
+      "code": "E904",
+      "terms": [
+        "e904",
+        "schellack",
+        "shellac"
+      ],
+      "name": "Shellac",
+      "about": "A shiny glaze made from a resin that lac insects produce. No plant version exists.",
+      "group": "shellac",
+      "veganClaimSettles": false
+    }
+  ]
+}

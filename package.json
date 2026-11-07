@@ -6,7 +6,9 @@
     "build": "next build",
     "start": "next start",
     "test": "node --experimental-strip-types scripts/test-rules.ts",
-    "deploy": "netlify build && rm -f .netlify/functions-internal/*/.env* && netlify deploy --prod --no-build --dir .netlify/static --functions .netlify/functions-internal"
+    "deploy": "netlify build && rm -f .netlify/functions-internal/*/.env* && netlify deploy --prod --no-build --dir .netlify/static --functions .netlify/functions-internal",
+    "test:check": "tsx scripts/test-check.ts",
+    "test:recommend": "tsx scripts/test-recommend.ts"
   },
   "dependencies": {
     "@zxing/browser": "^0.2.1",
@@ -21,6 +23,7 @@
     "@types/node": "^26.6.3",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   },
   "private": true

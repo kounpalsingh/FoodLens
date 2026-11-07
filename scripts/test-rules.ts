@@ -11,6 +11,8 @@ const cases: [string, Category, string][] = [
   ["Weizenmehl, Vollei, Zucker, Butter", "egg", "cake with egg"],
   ["Weizenmehl, Zucker, Butter, Backpulver", "veg", "eggless cake with butter"],
   ["Kuhmilch", "veg", "plain milk"],
+  ["Bio Süssrahmbutter, 82% Fett", "veg", "sweet-cream butter (ss spelling)"],
+  ["Sauerrahmbutter, Speisesalz", "veg", "soured-cream butter"],
   ["Mango-Fruchtfleisch (60%), Zucker, Wasser", "vegan", "fruit pulp is not meat"],
   ["Pasteurisierte Milch, Salz, Lab, Milchsäurekulturen", "unclear", "cheese with rennet"],
   ["Pasteurisierte Milch, Salz, mikrobielles Lab", "veg", "microbial rennet"],
@@ -69,6 +71,9 @@ const cases: [string, Category, string][] = [
   ["Peanut butter, salt, sugar", "vegan", "peanut butter stays vegan"],
   ["Nuss-Nougat-Creme: Zucker, Palmöl, Haselnüsse, Kakao", "vegan", "'Creme' alone is not dairy"],
   ["Eierteigwaren, Tomaten", "egg", "egg pasta"],
+  // a plant word in the NEXT ingredient must not settle E471
+  ["Zucker, Emulgator: E471, Rapsöl", "unclear", "E471 then a separate rapeseed oil"],
+  ["Zucker, Emulgator: E471 (aus Rapsöl)", "vegan", "E471 from rapeseed"],
 ];
 
 let fail = 0;

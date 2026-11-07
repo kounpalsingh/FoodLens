@@ -2,14 +2,22 @@
 // or photo -> AI transcription, or pasted text), then run the rules and score confidence.
 import rulesData from "../data/ingredient-rules.json";
 import autoTerms from "../data/off-animal-terms.json";
-import { analyzeIngredients, type Category, type Hit, type RulesData } from "./rules";
-import { lookupBarcode, type OffProduct } from "./openfoodfacts";
+import { analyzeIngredients, classify, type Category, type Hit, type RulesData } from "./rules";
+import { fromPhoto, type Nutrition } from "./nutrition";
+import { claimsInText, findAdditives, type AdditiveFinding, type ProductClaims } from "./additives";
+import { lookupBarcode, type OffProduct, type Quality } from "./openfoodfacts";
 import { ingredientRows, translateItem, translateTrace, type IngredientRow } from "./translate";
 
 const RULES = { ...(rulesData as RulesData), autoTerms: autoTerms as RulesData["autoTerms"] };
 import { llmConfigured, readLabelFromImage } from "./llm";
 
-export type CheckInput = { barcode?: string; image?: string; text?: string };
+export type CheckInput = {
+  barcode?: string;
+  image?: string;
+  text?: string;
+  /** Product already fetched from Open Food Facts for this barcode (null = not found), so it isn't fetched again. */
+  preloaded?: OffProduct | null;
+};
 
 export type CheckResult = {
   category: Category;
@@ -21,9 +29,22 @@ export type CheckResult = {
   reasons: string[];
   traces: { de: string | null; en: string }[];
   ingredients: { original: string; english?: string; rows: IngredientRow[] };
+  /** Additives that can be plant or animal (E471…), with what we know about their source. */
+  additives: AdditiveFinding[];
+  /** Nutri-Score and nutrient levels; never affects the category. Null when unknown. */
+  nutrition: Nutrition | null;
+  /** Organic, "ohne Gentechnik", animal-welfare level and processing group (Open Food Facts only). */
+  quality: Quality | null;
 };
 
 export class CheckError extends Error {}
+
+/** The photo shows a food product but no ingredient list: search Open Food Facts by its name instead. */
+export class NeedsSearch extends Error {
+  constructor(public query: string) {
+    super(`No ingredient list in this photo; search for "${query}"`);
+  }
+}
 
 const clamp = (n: number) => Math.max(5, Math.min(97, Math.round(n)));
 
@@ -38,15 +59,24 @@ export async function runCheck(input: CheckInput): Promise<CheckResult> {
   let english: string | undefined;
   let legibility: "clear" | "partial" | "unreadable" = "clear";
   let offTags: string[] = [];
+  let nutrition: Nutrition | null = null;
+  let quality: Quality | null = null;
 
   // 1. Barcode found in the photo -> try Open Food Facts first (no AI needed).
   let offMiss = false;
   let offDown = false;
+  let offBusy = false;
   if (input.barcode) {
-    const found = await lookupBarcode(input.barcode).catch(() => {
-      offDown = true;
-      return null;
-    });
+    const found =
+      input.preloaded !== undefined
+        ? input.preloaded
+        : await lookupBarcode(input.barcode).catch((e: { busy?: boolean }) => {
+            offDown = true;
+            offBusy = Boolean(e?.busy);
+            return null;
+          });
+    nutrition = found?.nutrition ?? null;
+    quality = found?.quality ?? null;
     if (found && found.ingredientsText.trim().length >= 3) {
       off = found;
       source = "openfoodfacts";
@@ -65,7 +95,9 @@ export async function runCheck(input: CheckInput): Promise<CheckResult> {
     if (!llmConfigured()) {
       throw new CheckError(
         (offDown
-          ? "Couldn't reach Open Food Facts to look up this barcode. "
+          ? offBusy
+            ? "Open Food Facts is busy right now (too many requests), so this barcode couldn't be looked up. "
+            : "Couldn't reach Open Food Facts to look up this barcode. "
           : offMiss
             ? `This product (barcode ${input.barcode}) isn't in Open Food Facts yet, or has no ingredient list there. `
             : "No barcode could be read in this photo. Retake it closer and sharper, with the barcode filling more of the frame. ") +
@@ -83,12 +115,15 @@ export async function runCheck(input: CheckInput): Promise<CheckResult> {
         `This doesn't look like food${reading.what_it_is ? ` (it looks like ${reading.what_it_is})` : ""}. Food Lens only checks food and drink.`,
       );
     }
+    const named = [reading.brand, reading.product_name].filter(Boolean).join(" ").trim();
+    if (reading.ingredients_original.trim().length < 3 && named.length >= 3) throw new NeedsSearch(named);
     source = "photo";
     if (reading.product_name && !product.name) product.name = reading.product_name;
     original = reading.ingredients_original;
     english = reading.ingredients_english || undefined;
     if (reading.ingredients_list?.length) rows = reading.ingredients_list.map((i) => ({ de: i.de, en: i.en || translateItem(i.de), depth: 0 }));
     legibility = reading.legibility;
+    nutrition = nutrition ?? fromPhoto(reading.nutrition);
 
   } else if (!original && input.text) {
     source = "text";
@@ -96,7 +131,9 @@ export async function runCheck(input: CheckInput): Promise<CheckResult> {
   } else if (!original) {
     throw new CheckError(
       offDown
-        ? "Couldn't reach Open Food Facts to look up this barcode. Try again, or upload a photo of the ingredient list."
+        ? offBusy
+          ? "Open Food Facts is busy right now (too many requests). Try again in a minute, or upload a photo of the ingredient list."
+          : "Couldn't reach Open Food Facts to look up this barcode. Try again, or upload a photo of the ingredient list."
         : offMiss
         ? `This product (barcode ${input.barcode}) isn't in Open Food Facts yet, or has no ingredient list there. Upload a photo of the ingredient list instead.`
         : "Upload a photo or paste the ingredient text.",
@@ -106,6 +143,36 @@ export async function runCheck(input: CheckInput): Promise<CheckResult> {
   // 3. Rules decide. Run on original + English translation so both languages are matched.
   const textForRules = [original, english].filter(Boolean).join(" ; ");
   const r = analyzeIngredients(textForRules, RULES);
+
+  // 3b. Additives that can be plant or animal: settle them only where the pack gives evidence.
+  const textClaims = claimsInText(original);
+  const claims: ProductClaims = {
+    veganLabel: Boolean(off?.labels.vegan) || textClaims.veganLabel,
+    vegetarianLabel: Boolean(off?.labels.vegetarian) || textClaims.vegetarianLabel,
+    source: off?.labels.vegan ? "Open Food Facts product labels" : textClaims.source,
+  };
+  const additives = findAdditives(textForRules, claims);
+  const additiveReasons: string[] = [];
+  for (const group of ["emulsifier_maybe_animal", "vitamin_d3_lanolin"]) {
+    const inGroup = additives.filter((a) => a.group === group);
+    if (!inGroup.length) continue;
+    const at = r.hits.findIndex((h) => h.ruleId === group);
+    const animal = inGroup.find((a) => a.status === "animal");
+    if (animal) {
+      if (at >= 0) r.hits.splice(at, 1);
+      r.hits.push({ ruleId: "additive_animal", label: `${animal.name} from animals`, matched: animal.matched, cls: "non_veg" });
+      additiveReasons.push(`${animal.code} (${animal.name.toLowerCase()}) is animal-based: ${animal.evidence.toLowerCase()}`);
+    } else if (at < 0 && inGroup.some((a) => a.status === "unknown")) {
+      // Found by name only in the additives list (e.g. "Dinatriumguanylat"): still unclear.
+      const unknown = inGroup.find((a) => a.status === "unknown")!;
+      const rule = RULES.rules.find((x) => x.id === group);
+      r.hits.push({ ruleId: group, label: rule?.label ?? unknown.name, matched: unknown.matched, cls: RULES.categories[rule?.category ?? ""] ?? "maybe_non_veg" });
+    } else if (at >= 0 && inGroup.every((a) => a.status === "plant")) {
+      r.hits.splice(at, 1);
+      additiveReasons.push(`${inGroup.map((a) => a.code).join(", ")}: plant-based. ${inGroup[0].evidence}`);
+    }
+  }
+  r.category = classify(r.hits, r.hasIngredients);
   const labels = (cls: Hit["cls"]) => r.hits.filter((h) => h.cls === cls).map((h) => h.label.toLowerCase());
   const maybes = r.hits.filter((h) => h.cls === "maybe_non_veg" || h.cls === "maybe_egg");
 
@@ -149,6 +216,8 @@ export async function runCheck(input: CheckInput): Promise<CheckResult> {
       confidence = listConfidence;
       reasons.push("No animal ingredients found.");
   }
+
+  reasons.push(...additiveReasons);
 
   // Photo only partly readable: never call it veg/vegan on half a list.
   if (source! === "photo" && legibility !== "clear" && r.hasIngredients) {
@@ -212,5 +281,8 @@ export async function runCheck(input: CheckInput): Promise<CheckResult> {
         ? [{ de: null, en: `May contain traces of ${off.tracesEn.join(", ")}` }]
         : [],
     ingredients: { original, english, rows: rows ?? ingredientRows(original) },
+    additives,
+    nutrition,
+    quality,
   };
 }

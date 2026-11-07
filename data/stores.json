@@ -1,0 +1,28 @@
+{
+  "_readme": [
+    "Supermarkets and their own brands, used to find a store's products in Open Food Facts (it has no searchable store field).",
+    "brands: Open Food Facts brand tags (lower case, spaces as '-', accents removed). Each was checked to have German products listed (Nov 2026).",
+    "names: words a shopper might type for the store.",
+    "Only own brands are covered: branded products a store also sells (e.g. Haribo at Lidl) are not."
+  ],
+  "stores": [
+    {"id": "lidl", "label": "Lidl", "names": ["lidl"],
+     "brands": ["lidl", "milbona", "vemondo", "pilos", "chef-select", "deluxe", "alesto", "sondey", "freeway", "solevita", "fin-carre", "kania", "snack-day", "baresa", "combino", "italiamo", "eridanous", "gelatelli", "bellarom", "lord-nelson", "grafschafter", "dulano", "mcennedy", "bio-organic", "favorina", "nixe", "golden-bridge"]},
+    {"id": "aldi", "label": "Aldi", "names": ["aldi", "aldi süd", "aldi sud", "aldi nord"],
+     "brands": ["aldi", "aldi-sud", "aldi-nord", "milsani", "moser-roth", "choceur", "lyttos", "cucina-nobile", "cucina", "gut-bio", "gutbio", "rio-d-oro", "golden-seafood", "goldahren", "sun-snacks", "westminster", "my-vay", "asia-green-garden", "meine-metzgerei", "wonnemeyer", "happy-harvest", "biscotto", "le-gusto", "nur-nur-natur", "desira", "enjoy-free"]},
+    {"id": "edeka", "label": "Edeka", "names": ["edeka"],
+     "brands": ["edeka", "gut-gunstig", "edeka-bio", "edeka-herzstucke", "edeka-italia"]},
+    {"id": "rewe", "label": "Rewe", "names": ["rewe"],
+     "brands": ["rewe", "ja", "rewe-beste-wahl", "rewe-bio", "rewe-feine-welt", "rewe-frei-von", "rewe-bio-vegan"]},
+    {"id": "kaufland", "label": "Kaufland", "names": ["kaufland"],
+     "brands": ["kaufland", "k-classic", "k-bio", "k-favourites", "k-take-it-veggie", "k-free"]},
+    {"id": "penny", "label": "Penny", "names": ["penny"],
+     "brands": ["penny", "naturgut", "food-for-future", "penny-ready"]},
+    {"id": "netto", "label": "Netto Marken-Discount", "names": ["netto", "netto marken-discount", "netto marken discount"],
+     "brands": ["netto", "netto-marken-discount", "bio-bio", "mein-veggie-tag", "gut-gunstig"]},
+    {"id": "dm", "label": "dm", "names": ["dm", "dm-drogerie", "dm drogerie"],
+     "brands": ["dmbio", "dm-bio"]},
+    {"id": "rossmann", "label": "Rossmann", "names": ["rossmann"],
+     "brands": ["enerbio"]}
+  ]
+}

@@ -70,11 +70,36 @@ export function splitTraces(text: string): { main: string; traces: string[] } {
   return { main, traces };
 }
 
-function escapeRe(s: string) {
+export function escapeRe(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function termRegex(term: string): RegExp {
+/** Text from `from` to the end of the current list item: stops at , ; or . outside brackets, or at a closing bracket that ends the enclosing group. */
+export function itemAfter(text: string, from: number): string {
+  let depth = 0;
+  let i = from;
+  for (; i < text.length; i++) {
+    const c = text[i];
+    if (c === "(" || c === "[") depth++;
+    else if (c === ")" || c === "]") {
+      if (depth === 0) break;
+      depth--;
+    } else if ((c === "," || c === ";" || c === ".") && depth === 0) break;
+  }
+  return text.slice(from, i);
+}
+
+/** Text from the start of the current list item up to `to` (words like "pflanzliches" before the ingredient). */
+export function itemBefore(text: string, to: number): string {
+  let i = to - 1;
+  for (; i >= 0; i--) {
+    const c = text[i];
+    if (c === "," || c === ";" || c === ":" || c === "(" || c === "[" || c === ".") break;
+  }
+  return text.slice(i + 1, to);
+}
+
+export function termRegex(term: string): RegExp {
   // "=word" whole word, "^word" start of a word, plain = anywhere (German compounds).
   const mode = term[0] === "=" || term[0] === "^" ? term[0] : "";
   const t = escapeRe(mode ? term.slice(1) : term);
@@ -111,7 +136,9 @@ export function analyzeIngredients(rawText: string, data: RulesData): RuleResult
       let m: RegExpExecArray | null;
       let found = false;
       while ((m = re.exec(text))) {
-        const after = text.slice(m.index + m[0].length, m.index + m[0].length + 45);
+        // Only look inside this ingredient's own list item ("E471 (pflanzlich)"), never the next
+        // ingredient ("E471, Rapsöl" must not count as plant-based).
+        const after = itemAfter(text, m.index + m[0].length);
         if (rule.okIfFollowedBy?.some((w) => after.includes(w))) continue;
         found = true;
         break;

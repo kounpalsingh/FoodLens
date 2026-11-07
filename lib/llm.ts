@@ -60,20 +60,36 @@ const LabelSchema = z.object({
   what_it_is: z.string().nullable().optional(),
   legibility: z.enum(["clear", "partial", "unreadable"]).catch("partial"),
   product_name: z.string().nullable().optional(),
+  brand: z.string().nullable().optional(),
   ingredients_original: z.string().default(""),
   ingredients_english: z.string().default(""),
   ingredients_list: z.array(z.object({ de: z.string(), en: z.string().nullable().optional() })).optional(),
+  nutrition: z
+    .object({
+      per: z.string().nullable().optional(),
+      energy_kcal: z.union([z.number(), z.string()]).nullable().optional(),
+      fat: z.union([z.number(), z.string()]).nullable().optional(),
+      saturated_fat: z.union([z.number(), z.string()]).nullable().optional(),
+      sugars: z.union([z.number(), z.string()]).nullable().optional(),
+      salt: z.union([z.number(), z.string()]).nullable().optional(),
+      nutri_score: z.string().nullable().optional(),
+    })
+    .nullable()
+    .optional()
+    .catch(null),
 });
 export type LabelReading = z.infer<typeof LabelSchema>;
 
 const PROMPT = `You read photos of product packaging sold in Germany.
-Find the ingredient list (usually starts with "Zutaten:") and return ONLY this JSON object, no other text:
+Find the ingredient list (usually starts with "Zutaten:") and return ONLY this JSON object, no other text. The photo may also show only the front of the pack; then read the brand and product name and leave the ingredient list empty.
 {
   "is_food_label": true/false,
   "what_it_is": "2-4 words saying what the product is, e.g. 'chocolate biscuits', 'dishwashing liquid'",
   "legibility": "clear" | "partial" | "unreadable",
-  "product_name": string or null,
-  "ingredients_original": "the ingredient list copied exactly as printed, including E-numbers and any 'Kann Spuren von...' line"
+  "brand": "the brand printed on the pack, or null",
+  "product_name": "the product name printed on the pack (front or back), or null",
+  "ingredients_original": "the ingredient list copied exactly as printed, including E-numbers and any 'Kann Spuren von...' line",
+  "nutrition": {"per": "100 g" or "100 ml", "energy_kcal": number, "fat": number, "saturated_fat": number, "sugars": number, "salt": number, "nutri_score": "A"-"E"} or null
 }
 Rules:
 - Copy only text you can actually see. Never guess or add ingredients that are not visible.
@@ -81,6 +97,7 @@ Rules:
 - If part of the list is cut off, blurred or covered, set legibility to "partial".
 - If there is no ingredient list in the photo, set ingredients_original to "" and legibility to "unreadable".
 - is_food_label is false for anything that is not food or drink (cleaning products, cosmetics, medicine, pet food) or not a product label at all.
+- nutrition: copy the per-100 g (or 100 ml) column of the "Nährwerte" table as plain numbers ("davon gesättigte Fettsäuren" = saturated_fat, "davon Zucker" = sugars). Use null for a value you can't see, and null for the whole object if there is no nutrition table. nutri_score only if a Nutri-Score logo is visible.
 - Do not judge whether the food is vegetarian. Only transcribe.`;
 
 function friendly(status: number | undefined, model: string): string | null {
@@ -181,7 +198,7 @@ export function readLabelFromImage(imageDataUrl: string, budgetMs = 21_000): Pro
       { type: "image_url", image_url: { url: imageDataUrl } },
     ],
     LabelSchema,
-    1200,
+    1500,
     budgetMs,
   );
 }

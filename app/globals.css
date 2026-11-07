@@ -65,6 +65,16 @@ h1 span { display: block; font-size: 17px; font-weight: 400; color: var(--muted)
   border: 1px solid var(--line); border-radius: 10px; resize: vertical;
 }
 
+.name-search input { width: 100%; margin-top: 8px; font: inherit; font-size: 15px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; }
+.matches { display: grid; gap: 8px; margin-top: 14px; }
+.match-note { margin: 0 0 2px; font-size: 14px; }
+.match { display: flex; align-items: center; gap: 12px; text-align: left; width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: #fff; cursor: pointer; font: inherit; color: inherit; }
+.match:hover { border-color: var(--red); }
+.match img, .match-noimg { width: 48px; height: 48px; object-fit: contain; border-radius: 6px; background: var(--bg); flex-shrink: 0; }
+.match-text { display: grid; gap: 2px; min-width: 0; }
+.match-text strong { font-size: 14px; }
+.match-text small { font-size: 12px; color: var(--muted); }
+.match-text .match-warn { color: var(--amber); }
 .primary {
   width: 100%; margin-top: 20px; padding: 14px; border: 0; border-radius: 10px;
   background: var(--red); color: #fff; font: inherit; font-weight: 700; font-size: 16px; cursor: pointer;
@@ -119,6 +129,35 @@ h1 span { display: block; font-size: 17px; font-weight: 400; color: var(--muted)
 .chip.egg, .chip.maybe_non_veg, .chip.maybe_egg { background: var(--amber-bg); color: var(--amber); }
 .chip.animal_veg, .chip.maybe_animal_veg { background: var(--green-bg); color: var(--green); }
 
+.additives { display: grid; gap: 8px; margin-bottom: 12px; }
+.additive { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.additive-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.additive-head strong { font-size: 14px; }
+.additive-name { font-size: 14px; flex: 1; min-width: 160px; }
+.additive-name em { font-style: normal; color: var(--muted); }
+.additive-about { margin: 6px 0 2px; font-size: 13px; color: var(--muted); }
+.additive-evidence { margin: 0; font-size: 13px; }
+.status { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.status.plant { background: var(--green-bg); color: var(--green); }
+.status.animal, .status.insect { background: var(--pink); color: var(--red-dark); }
+.status.unknown { background: var(--amber-bg); color: var(--amber); }
+.nutrition { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; }
+.nutrition .per { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.nutri-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.nutriscore { font-size: 13px; font-weight: 600; padding: 3px 10px; border-radius: 999px; color: #fff; }
+.nutriscore b { font-size: 15px; margin-left: 2px; }
+.ns-a { background: #1e7a46; } .ns-b { background: #5f9e2f; } .ns-c { background: #b88700; } .ns-d { background: #c4561b; } .ns-e { background: #b42318; }
+.kcal { font-size: 14px; color: var(--muted); }
+.levels { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.lvl { display: grid; grid-template-columns: 1fr auto 76px; gap: 8px; align-items: center; font-size: 14px; padding: 5px 8px; border-radius: 8px; }
+.lvl-name em { font-style: normal; color: var(--muted); font-size: 12px; }
+.lvl-val { color: var(--muted); font-variant-numeric: tabular-nums; }
+.lvl-tag { font-weight: 600; font-size: 12px; text-align: center; border-radius: 999px; padding: 2px 8px; }
+.lvl.low .lvl-tag { background: var(--green-bg); color: var(--green); }
+.lvl.moderate .lvl-tag { background: var(--amber-bg); color: var(--amber); }
+.lvl.high .lvl-tag { background: var(--pink); color: var(--red-dark); }
+.lvl.none .lvl-tag { background: var(--bg); color: var(--muted); }
+.nutri-note { font-size: 12px; color: var(--muted); margin: 8px 0 0; }
 .traces { font-size: 13px; color: var(--muted); background: var(--bg); border-radius: 8px; padding: 8px 10px; margin-bottom: 12px; }
 .traces .pair { display: grid; gap: 1px; margin-top: 6px; }
 .traces .pair span:first-child { color: var(--ink); }
@@ -146,3 +185,28 @@ footer { font-size: 12px; color: var(--muted); text-align: center; margin-top: 2
   h1 { font-size: 28px; }
   .scale { grid-template-columns: 1fr 1fr; }
 }
+
+/* Find the best option */
+.best { margin-top: 20px; }
+.best h2 { font-size: 22px; margin: 0; color: var(--ink); letter-spacing: -0.01em; }
+.best h2 span { display: block; font-size: 14px; font-weight: 400; color: var(--muted); margin-top: 2px; }
+.best-intro { font-size: 14px; color: var(--muted); margin: 10px 0 0; }
+.best-form input, .best-form select { width: 100%; font: inherit; font-size: 15px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: inherit; }
+.best-form input { margin-top: 12px; }
+.best-selects { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.best-form .primary { margin-top: 12px; }
+.recs { display: grid; gap: 8px; margin-top: 16px; }
+.rec { display: flex; align-items: flex-start; gap: 10px; text-align: left; width: 100%; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; cursor: pointer; font: inherit; color: inherit; }
+.rec:hover { border-color: var(--red); }
+.rec-rank { font-weight: 700; font-size: 15px; color: var(--red); width: 16px; flex-shrink: 0; padding-top: 2px; }
+.rec img, .rec .match-noimg { width: 56px; height: 56px; object-fit: contain; border-radius: 6px; background: var(--bg); flex-shrink: 0; }
+.rec-text { display: grid; gap: 3px; min-width: 0; }
+.rec-text strong { font-size: 14px; }
+.rec-text small { font-size: 12px; color: var(--muted); }
+.rec-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0; }
+.rec-tags .chip { font-size: 12px; padding: 2px 8px; border: 1.5px solid var(--c); color: var(--c); background: #fff; }
+.nschip { font-size: 12px; padding: 2px 8px; border-radius: 999px; color: #fff; font-weight: 600; }
+.rec-text .rec-good { color: var(--green); }
+.rec-text .rec-bad { color: var(--amber); }
+.best-note { font-size: 12px; color: var(--muted); margin: 4px 0 0; }
+@media (max-width: 420px) { .best-selects { grid-template-columns: 1fr; } }

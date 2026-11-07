@@ -2,7 +2,18 @@
 
 import { useRef, useState } from "react";
 import type { CheckResult } from "@/lib/check";
+import type { ProductMatch } from "@/lib/search";
 import type { Category } from "@/lib/rules";
+import type { Diet, RecommendResult } from "@/lib/recommend";
+import storesData from "@/data/stores.json";
+
+const STORE_OPTIONS = storesData.stores.map((s) => ({ id: s.id, label: s.label }));
+const DIET_OPTIONS: { id: Diet; label: string }[] = [
+  { id: "any", label: "Any diet" },
+  { id: "egg", label: "Veg + egg" },
+  { id: "veg", label: "Vegetarian" },
+  { id: "vegan", label: "Vegan" },
+];
 
 // Order matters: this is the scale shown on every result, from most to least restrictive.
 const CATEGORIES: { id: Exclude<Category, "unclear">; label: string; de: string; hint: string }[] = [
@@ -29,6 +40,13 @@ const TITLE_DE: Record<Category, string> = {
 };
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+const STATUS_TEXT: Record<CheckResult["additives"][number]["status"], string> = {
+  plant: "Plant-based",
+  animal: "Animal-based",
+  insect: "From insects",
+  unknown: "Source not stated",
+};
 
 const SOURCE_TEXT: Record<CheckResult["source"], string> = {
   openfoodfacts: "Ingredients from Open Food Facts (barcode)",
@@ -127,8 +145,18 @@ export default function Home() {
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CheckResult | null>(null);
+  const [query, setQuery] = useState("");
+  const [matches, setMatches] = useState<ProductMatch[] | null>(null);
+  const [matchNote, setMatchNote] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
+  const [recQuery, setRecQuery] = useState("");
+  const [recStore, setRecStore] = useState("any");
+  const [recDiet, setRecDiet] = useState<Diet>("any");
+  const [recBusy, setRecBusy] = useState(false);
+  const [recError, setRecError] = useState<string | null>(null);
+  const [rec, setRec] = useState<RecommendResult | null>(null);
 
   function pick(f: File | undefined | null) {
     if (!f || !f.type.startsWith("image/")) return;
@@ -176,49 +204,116 @@ export default function Home() {
     }
   }
 
-  async function check() {
-    setError(null);
-    setResult(null);
-    let slow: ReturnType<typeof setTimeout> | undefined;
+  // Sends one check to the server and shows the result (or hands over to a name search).
+  async function postCheck(body: Record<string, string>) {
+    // Free AI models can be slow: tell the user it is still working.
+    const slow = setTimeout(() => setStatus("Still reading… the free AI model can take up to 30 seconds"), 8000);
     try {
-      const body: Record<string, string> = {};
-      if (file && preview) {
-        setStatus("Looking for a barcode…");
-        const barcode = await findBarcode(file);
-        if (barcode) body.barcode = barcode;
-        body.image = await toResizedDataUrl(file);
-        setStatus(barcode ? `Barcode ${barcode} found — looking it up…` : "Reading the ingredient list…");
-      } else if (text.trim()) {
-        body.text = text.trim();
-        setStatus("Checking ingredients…");
-      } else {
-        setError("Upload a photo of the label, or paste the ingredient list.");
-        return;
-      }
-
-      // Free AI models can be slow: tell the user it is still working.
-      slow = setTimeout(() => setStatus("Still reading… the free AI model can take up to 30 seconds"), 8000);
       const res = await fetch("/api/check", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       const raw = await res.text();
-      let data: (CheckResult & { error?: string }) | null = null;
+      let data: (CheckResult & { error?: string; search?: { query: string } }) | null = null;
       try {
         data = JSON.parse(raw);
       } catch {
         // The server sent something that isn't our answer (a timeout or gateway error page).
         throw new Error("The check took too long and was cut off. Please try again in a minute.");
       }
+      if (data?.search) {
+        clearTimeout(slow);
+        await searchByName(data.search.query, `No ingredient list in this photo, but it looks like “${data.search.query}”. Is it one of these?`);
+        return;
+      }
       if (!res.ok || !data || data.error) throw new Error(data?.error || "Check failed.");
       setResult(data);
       void fillTranslations(data);
+    } finally {
+      clearTimeout(slow);
+    }
+  }
+
+  async function searchByName(q: string, note?: string) {
+    setStatus(`Searching for “${q}”…`);
+    const res = await fetch("/api/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: q }),
+    });
+    const data = (await res.json().catch(() => ({}))) as { matches?: ProductMatch[]; error?: string };
+    if (!res.ok || !data.matches) throw new Error(data.error || "Search failed.");
+    if (!data.matches.length) {
+      throw new Error(`Couldn’t find “${q}” in Open Food Facts. Try a shorter name, or take a photo of the ingredient list.`);
+    }
+    setMatches(data.matches);
+    setMatchNote(note ?? "Pick your product:");
+  }
+
+  async function run(task: () => Promise<void>) {
+    setError(null);
+    setResult(null);
+    setMatches(null);
+    setMatchNote(null);
+    try {
+      await task();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Check failed.");
     } finally {
-      clearTimeout(slow);
       setStatus(null);
+    }
+  }
+
+  function check() {
+    return run(async () => {
+      if (file && preview) {
+        setStatus("Looking for a barcode…");
+        const barcode = await findBarcode(file);
+        const body: Record<string, string> = { image: await toResizedDataUrl(file) };
+        if (barcode) body.barcode = barcode;
+        setStatus(barcode ? `Barcode ${barcode} found — looking it up…` : "Reading the label…");
+        await postCheck(body);
+      } else if (text.trim()) {
+        setStatus("Checking ingredients…");
+        await postCheck({ text: text.trim() });
+      } else if (query.trim().length >= 2) {
+        await searchByName(query.trim());
+      } else {
+        setError("Upload a photo of the label, paste the ingredient list, or type the product name.");
+      }
+    });
+  }
+
+  function checkMatch(m: { code: string; name: string }) {
+    return run(async () => {
+      setStatus(`Checking ${m.name}…`);
+      await postCheck({ barcode: m.code });
+      resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
+  async function findBest() {
+    if (recQuery.trim().length < 2) {
+      setRecError('Type what you\u2019re looking for, e.g. \u201cbest milk at Lidl\u201d.');
+      return;
+    }
+    setRecBusy(true);
+    setRecError(null);
+    setRec(null);
+    try {
+      const res = await fetch("/api/recommend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: recQuery.trim(), store: recStore, diet: recDiet }),
+      });
+      const data = (await res.json().catch(() => null)) as (RecommendResult & { error?: string }) | null;
+      if (!res.ok || !data || data.error) throw new Error(data?.error || "Couldn\u2019t get recommendations. Try again in a minute.");
+      setRec(data);
+    } catch (e) {
+      setRecError(e instanceof Error ? e.message : "Couldn\u2019t get recommendations.");
+    } finally {
+      setRecBusy(false);
     }
   }
 
@@ -234,7 +329,7 @@ export default function Home() {
 
       <h1>
         Can I eat this?
-        <span>Upload a photo of the label. Get an answer in seconds.</span>
+        <span>Photograph the label, paste the ingredients or type the product name.</span>
       </h1>
 
       <section className="card">
@@ -255,7 +350,7 @@ export default function Home() {
             <input ref={inputRef} type="file" accept="image/*" onChange={(e) => pick(e.target.files?.[0])} hidden />
             <span className="drop-icon" aria-hidden>⬆</span>
             <strong>Drop a photo here or click to upload</strong>
-            <small>Ingredient list (Zutaten) or barcode, JPG or PNG</small>
+            <small>Ingredient list (Zutaten), barcode or front of pack</small>
           </label>
         )}
 
@@ -271,14 +366,133 @@ export default function Home() {
           </details>
         )}
 
+        {!preview && (
+          <details className="paste">
+            <summary>Or search by product name</summary>
+            <form
+              className="name-search"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void check();
+              }}
+            >
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="e.g. Haribo Goldbären"
+                aria-label="Product name"
+              />
+            </form>
+          </details>
+        )}
+
         <button className="primary" onClick={check} disabled={busy}>
           {busy ? status : "Check"}
         </button>
 
         {error && <p className="error">{error}</p>}
+
+        {matches && (
+          <div className="matches" aria-live="polite">
+            {matchNote && <p className="match-note">{matchNote}</p>}
+            {matches.map((m) => (
+              <button key={m.code} className="match" onClick={() => void checkMatch(m)} disabled={busy}>
+                {m.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={m.imageUrl} alt="" loading="lazy" />
+                ) : (
+                  <span className="match-noimg" aria-hidden />
+                )}
+                <span className="match-text">
+                  <strong>{m.name}</strong>
+                  <small>{[m.brand, m.quantity].filter(Boolean).join(" · ")}</small>
+                  {!m.hasIngredients && <small className="match-warn">Ingredient list may be missing</small>}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
       </section>
 
-      {result && <ResultCard r={result} />}
+      <div ref={resultRef}>{result && <ResultCard r={result} />}</div>
+
+      <section className="card best">
+        <h2>
+          Find the best option
+          <span lang="de">Das Beste im Regal finden</span>
+        </h2>
+        <p className="best-intro">Ask for a product at a store, e.g. “best milk at Lidl” or “vegan yoghurt at Aldi”. Ranked by quality, not price.</p>
+        <form
+          className="best-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void findBest();
+          }}
+        >
+          <input
+            type="search"
+            value={recQuery}
+            onChange={(e) => setRecQuery(e.target.value)}
+            placeholder="best milk at Lidl"
+            aria-label="What are you looking for?"
+          />
+          <div className="best-selects">
+            <select value={recStore} onChange={(e) => setRecStore(e.target.value)} aria-label="Store">
+              <option value="any">Store from my text / any</option>
+              {STORE_OPTIONS.map((s) => (
+                <option key={s.id} value={s.id}>{s.label}</option>
+              ))}
+            </select>
+            <select value={recDiet} onChange={(e) => setRecDiet(e.target.value as Diet)} aria-label="Diet">
+              {DIET_OPTIONS.map((d) => (
+                <option key={d.id} value={d.id}>{d.label}</option>
+              ))}
+            </select>
+          </div>
+          <button className="primary" type="submit" disabled={recBusy}>
+            {recBusy ? "Checking products… (up to 15 s)" : "Find the best"}
+          </button>
+        </form>
+
+        {recError && <p className="error">{recError}</p>}
+
+        {rec && (
+          <div className="recs" aria-live="polite">
+            <p className="match-note">
+              Best <strong>{rec.interpreted.product}</strong>
+              {rec.interpreted.store ? <> at <strong>{rec.interpreted.store}</strong></> : " in Germany"}
+              {rec.interpreted.diet !== "any" && <> · {DIET_OPTIONS.find((d) => d.id === rec.interpreted.diet)?.label}</>}
+            </p>
+            {rec.items.map((it, i) => (
+              <button key={it.code} className="rec" onClick={() => void checkMatch(it)} disabled={busy}>
+                <span className="rec-rank">{i + 1}</span>
+                {it.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={it.imageUrl} alt="" loading="lazy" />
+                ) : (
+                  <span className="match-noimg" aria-hidden />
+                )}
+                <span className="rec-text">
+                  <strong lang="de">{it.name}</strong>
+                  <small>{[it.brand, it.quantity].filter(Boolean).join(" · ")}</small>
+                  <span className="rec-tags">
+                    <span className={`chip ${it.category}`}>{TITLE[it.category]}</span>
+                    {it.nutriScore && <span className={`nschip ns-${it.nutriScore.toLowerCase()}`}>Nutri-Score {it.nutriScore}</span>}
+                  </span>
+                  {it.good.filter((g) => !g.startsWith("Nutri-Score")).length > 0 && (
+                    <small className="rec-good">✓ {it.good.filter((g) => !g.startsWith("Nutri-Score")).join(" · ")}</small>
+                  )}
+                  {it.bad.filter((b) => !b.startsWith("Nutri-Score")).length > 0 && (
+                    <small className="rec-bad">! {it.bad.filter((b) => !b.startsWith("Nutri-Score")).join(" · ")}</small>
+                  )}
+                </span>
+              </button>
+            ))}
+            <p className="best-note">{rec.note}{rec.items.length > 0 && " Tap a product for the full check."}</p>
+          </div>
+        )}
+      </section>
 
       <footer>
         Prototype. Food Lens can be wrong — for allergies, always read the pack yourself.
@@ -333,6 +547,25 @@ function ResultCard({ r }: { r: CheckResult }) {
         </div>
       )}
 
+      {r.additives.length > 0 && (
+        <div className="additives">
+          <div className="field-label">Plant or animal? · Pflanzlich oder tierisch?</div>
+          {r.additives.map((a) => (
+            <div key={a.code} className={`additive ${a.status}`}>
+              <div className="additive-head">
+                <strong>{a.code}</strong>
+                <span className="additive-name">{a.name} <em lang="de">“{a.matched}”</em></span>
+                <span className={`status ${a.status}`}>{STATUS_TEXT[a.status]}</span>
+              </div>
+              <p className="additive-about">{a.about}</p>
+              <p className="additive-evidence">{a.evidence}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {r.nutrition && <NutritionPanel n={r.nutrition} />}
+
       {r.traces.length > 0 && (
         <div className="traces">
           <strong>Trace warning · Spurenhinweis</strong> (matters for allergies, not counted for the category)
@@ -384,5 +617,51 @@ function ResultCard({ r }: { r: CheckResult }) {
         {r.barcode && ` · ${r.barcode}`}
       </div>
     </section>
+  );
+}
+
+const NUTRIENTS: { key: "fat" | "saturatedFat" | "sugars" | "salt"; en: string; de: string }[] = [
+  { key: "fat", en: "Fat", de: "Fett" },
+  { key: "saturatedFat", en: "Saturated fat", de: "gesättigte Fettsäuren" },
+  { key: "sugars", en: "Sugars", de: "Zucker" },
+  { key: "salt", en: "Salt", de: "Salz" },
+];
+
+const LEVEL_TEXT = { low: "Low", moderate: "Medium", high: "High" } as const;
+
+function NutritionPanel({ n }: { n: NonNullable<CheckResult["nutrition"]> }) {
+  return (
+    <div className="nutrition">
+      <div className="field-label">
+        Nutrition · Nährwerte <span className="per">per {n.basis}</span>
+      </div>
+      <div className="nutri-top">
+        {n.nutriScore && (
+          <span className={`nutriscore ns-${n.nutriScore}`}>
+            Nutri-Score <b>{n.nutriScore.toUpperCase()}</b>
+          </span>
+        )}
+        {n.energyKcal != null && <span className="kcal">{Math.round(n.energyKcal)} kcal</span>}
+      </div>
+      <ul className="levels">
+        {NUTRIENTS.map(({ key, en, de }) => {
+          const level = n.levels[key];
+          const value = n.per100[key];
+          if (level == null && value == null) return null;
+          return (
+            <li key={key} className={`lvl ${level ?? "none"}`}>
+              <span className="lvl-name">
+                {en} <em lang="de">{de}</em>
+              </span>
+              <span className="lvl-val">{value != null ? `${value.toLocaleString("en", { maximumFractionDigits: 2 })} g` : ""}</span>
+              <span className="lvl-tag">{level ? LEVEL_TEXT[level] : "No level"}</span>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="nutri-note">
+        {n.source === "photo" ? "Read from your photo." : "From Open Food Facts."} Nutrition doesn&apos;t change the veg category.
+      </p>
+    </div>
   );
 }
